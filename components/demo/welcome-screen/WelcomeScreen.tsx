@@ -12,17 +12,11 @@ const WelcomeScreen: React.FC = () => {
   const { language1 } = useSettings();
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Filter for agent turns to show translations
-  const agentTurns = turns.filter(turn => turn.role === 'agent');
+  // Render all turns to show sequence
+  // Filter out empty turns or system instructions if any
+  const visibleTurns = turns.filter(turn => turn.role === 'user' || turn.role === 'agent');
 
-  // Auto-scroll to bottom
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [agentTurns.length, turns.at(-1)?.text]);
-
-  if (agentTurns.length === 0) {
+  if (visibleTurns.length === 0) {
     return (
       <div className="welcome-screen empty">
         <div className="welcome-content">
@@ -36,11 +30,22 @@ const WelcomeScreen: React.FC = () => {
     <div className="welcome-screen">
       <div className="welcome-content" ref={scrollRef}>
         <div className="translation-list">
-          {agentTurns.map((turn, index) => {
-            const isLast = index === agentTurns.length - 1;
+          {visibleTurns.map((turn, index) => {
+            const isLast = index === visibleTurns.length - 1;
             const showCursor = isLast && !turn.isFinal;
 
-            // Parse language tag: [LANG:Dutch] Text...
+            // Default check for user
+            if (turn.role === 'user') {
+              return (
+                <div key={index} className="translation-item user-transcript">
+                  <p className="transcript-text">
+                    {turn.text}
+                  </p>
+                </div>
+              );
+            }
+
+            // Agent Turn Parsing considering [LANG:...]
             const match = turn.text.match(/^\[LANG:(.+?)\]\s*(.*)/s);
             let displayRole = 'visitor-color';
             let displayText = turn.text;
@@ -48,24 +53,16 @@ const WelcomeScreen: React.FC = () => {
             if (match) {
               const detectedLang = match[1].trim();
               displayText = match[2];
-              // The user wants to color code *who spoke*. 
-              // Typically, you show the *result* of the translation.
-              // Let's assume:
-              // - Green for Staff Output (Target was Staff Lang)
-              // - Blue for Visitor Output (Target was Visitor Lang)
 
-              // User said: "make the difference in color for the home staff and the visitor"
-              // If language1 is Dutch.
-              // If tag is [LANG:Dutch], it is a glip to Dutch.
               if (detectedLang.toLowerCase() === language1.toLowerCase()) {
                 displayRole = 'staff-color';
               } else {
                 displayRole = 'visitor-color';
               }
-            } else {
-              // Fallback if tag is missing (e.g. initial partials)
-              // Attempt to guess or just default.
             }
+            // If no match, we typically wait or it's a raw output. 
+            // We can default to visitor or handle it.
+            // If it's the *very* beginning of a stream, it might not have the tag yet.
 
             return (
               <div key={index} className={`translation-item ${displayRole}`}>

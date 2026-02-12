@@ -11,6 +11,23 @@
   color: var(--accent-blue);
 }
 
+/* User Transcription - Input */
+.translation-item.user-transcript {
+  background: transparent;
+  padding: 0 10px;
+  border: none;
+  opacity: 0.8;
+  margin-bottom: -10px;
+  /* Pull tighter to the translation */
+}
+
+.translation-item.user-transcript .transcript-text {
+  font-size: 0.9em;
+  /* Relative to container, slightly smaller */
+  color: var(--gray-300);
+  font-family: 'Google Sans', sans-serif;
+}
+
 .welcome-screen {
   display: flex;
   justify-content: center;
