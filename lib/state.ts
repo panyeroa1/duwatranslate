@@ -12,8 +12,9 @@ import {
   LiveServerToolCall,
 } from '@google/genai';
 
-const topicInstruction = topic ? `The conversation is about: ${topic}. Please use appropriate terminology and context.` : '';
-return `You are an expert language translator. Your task is to provide EXTREMELY CONCISE translations.
+const generateSystemPrompt = (lang1: string, lang2: string, topic: string) => {
+  const topicInstruction = topic ? `The conversation is about: ${topic}. Please use appropriate terminology and context.` : '';
+  return `You are an expert language translator. Your task is to provide EXTREMELY CONCISE translations.
     
 **INSTRUCTIONS:**
 1.  **LISTEN** to the input.
