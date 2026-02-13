@@ -1,7 +1,7 @@
 # Task Checklist
 
-- [/] Commit project documentation to the repository
-  - [ ] Create `.eburon/docs` directory
-  - [ ] Copy artifacts (implementation plans and walkthroughs) to the directory
-  - [ ] Stage and commit the documentation
-  - [ ] Push to remote
+- [x] Commit project documentation to the repository
+  - [x] Create `.eburon/docs` directory
+  - [x] Copy artifacts (implementation plans and walkthroughs) to the directory
+  - [x] Stage and commit the documentation
+  - [x] Push to remote
