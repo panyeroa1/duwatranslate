@@ -81,13 +81,14 @@ async def websocket_endpoint(websocket: WebSocket):
                         # Send the whole message as JSON for other content (text, tools, etc)
                         try:
                             msg_dict = {}
-                            if hasattr(message, 'model_dump'):
-                                msg_dict = message.model_dump(exclude_none=True)
-                            elif hasattr(message, 'dict'):
-                                # Fallback for older SDK versions or different object types
-                                try:
-                                    msg_dict = message.dict(exclude_none=True)
-                                except:
+                            model_dump = getattr(message, 'model_dump', None)
+                            if callable(model_dump):
+                                msg_dict = model_dump(exclude_none=True)
+                            else:
+                                to_dict = getattr(message, 'dict', None)
+                                if callable(to_dict):
+                                    msg_dict = to_dict(exclude_none=True)
+                                else:
                                     # Very defensive fallback
                                     msg_dict = {k: v for k, v in vars(message).items() if not k.startswith('_')}
                             

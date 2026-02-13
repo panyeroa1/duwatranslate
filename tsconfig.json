@@ -9,6 +9,9 @@
       "DOM",
       "DOM.Iterable"
     ],
+    "types": [
+      "vite/client"
+    ],
     "skipLibCheck": true,
     "strict": true,
     "forceConsistentCasingInFileNames": true,
