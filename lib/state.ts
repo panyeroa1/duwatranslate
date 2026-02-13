@@ -1,37 +1,40 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
-*/
+// lib/state.ts
+
 import { create } from 'zustand';
 import { DEFAULT_LIVE_API_MODEL, DEFAULT_VOICE } from './constants';
 import {
-  // FIX: Add FunctionDeclaration and FunctionResponseScheduling to imports.
-  FunctionDeclaration,
+  ConversationTurn,
+  GroundingChunk,
+  LiveClientToolResponse,
+  LiveServerToolCall,
   FunctionResponse,
   FunctionResponseScheduling,
-  LiveServerToolCall,
-} from '@google/genai';
+  FunctionCall
+} from './types';
+
+/**
+ * State management for Eburon AI application settings and configuration.
+ * Uses Zustand for efficient state updates and persistence.
+ */
+
 
 const generateSystemPrompt = (lang1: string, lang2: string, topic: string) => {
   const topicInstruction = topic ? `The conversation is about: ${topic}. Please use appropriate terminology and context.` : '';
-  return `You are an expert language translator. Your task is to provide EXTREMELY CONCISE translations.
-    
-**INSTRUCTIONS:**
-1.  **LISTEN** to the input.
-2.  **TRANSLATE** the meaning using the FEWEST WORDS POSSIBLE (aim for 3-5 words max if possible).
-3.  **OUTPUT** format: "[LANG:LanguageName] TranslatedText"
-    
-**RULES:**
--   **NO** explanations.
--   **NO** filler words.
--   **NO** repetition of the source text.
--   **STRICTLY** output the translation only.
--   **EMOTIONAL NUANCE:** Mimic the speaker's tone and intensity (urgency, joy, etc.).
--   **VOICE PERSONA:** Staff=${lang2} ("Orus"), Guest=${lang1} ("Charon").
+  return `You are an elite, native-level real-time interpreter. Your goal is to provide seamless, culturally-accurate, and natural-sounding translations.
 
-Example:
-Input: "Where can I find the nearest bathroom, please?"
-Output: "[LANG:${lang2}] Toilet location?" (or concise equivalent)
+**CORE DIRECTIVES:**
+1. **CLEAN OUTPUT:** Output ONLY the translated text. NO metadata, labels like "[LANG:...]", or conversational filler.
+2. **NATIVE FLUENCY:** Use idioms, phrasing, and prosody that are natural and common for a native speaker of ${lang1} or ${lang2}. Avoid "translation-ese".
+3. **MIMIC NUANCE:** Capture the speaker's EXACT tone, intensity, and emotional nuance (humor, urgency, hesitation, etc.) in the translation.
+4. **CONCISENESS:** Be extremely brief. Distill the meaning into 3-5 core words if possible, while maintaining the native flow.
+
+**TRANSCRIPTION & VOICE:**
+- Listen with absolute precision to the source audio. Capture the full meaning accurately before translating.
+- When reading out the translation (TTS), ensure it sounds natural, human-like, and captures the original speaker's rhythm.
+
+**VOICE PERSONA REFERENCE:**
+- Voice: **Orus** for Staff (${lang2}).
+- Voice: **Charon** for Guest (${lang1}).
 
 ${topicInstruction}
 `;
@@ -102,43 +105,9 @@ export const useUI = create<{
   toggleSidebar: () => set(state => ({ isSidebarOpen: !state.isSidebarOpen })),
 }));
 
-// FIX: Define and export the FunctionCall interface.
-/**
- * Tools
- */
-// FIX: The FunctionCall interface was redefined to explicitly include the name, description, and parameters properties.
-// This resolves TS errors where these properties were reported as missing because `FunctionDeclaration` did not seem to contain them.
-export interface FunctionCall {
-  name: string;
-  description: string;
-  parameters: any;
-  isEnabled: boolean;
-  scheduling: FunctionResponseScheduling;
-}
-
 /**
  * Logs
  */
-export interface LiveClientToolResponse {
-  functionResponses?: FunctionResponse[];
-}
-export interface GroundingChunk {
-  web?: {
-    uri?: string;
-    title?: string;
-  };
-}
-
-export interface ConversationTurn {
-  timestamp: Date;
-  role: 'user' | 'agent' | 'system';
-  text: string;
-  isFinal: boolean;
-  toolUseRequest?: LiveServerToolCall;
-  toolUseResponse?: LiveClientToolResponse;
-  groundingChunks?: GroundingChunk[];
-}
-
 export const useLogStore = create<{
   turns: ConversationTurn[];
   addTurn: (turn: Omit<ConversationTurn, 'timestamp'>) => void;

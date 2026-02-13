@@ -4,15 +4,12 @@
 */
 import { useEffect, useRef } from 'react';
 import WelcomeScreen from '../welcome-screen/WelcomeScreen';
-// FIX: Import LiveServerContent to correctly type the content handler.
-import { Modality, LiveServerContent } from '@google/genai';
+import { LiveServerContent, ConversationTurn, GroundingChunk, Modality, LiveConnectConfig } from '../../../lib/types';
 
 import { useLiveAPIContext } from '../../../contexts/LiveAPIContext';
 import {
   useSettings,
   useLogStore,
-  ConversationTurn,
-  GroundingChunk,
 } from '../../../lib/state';
 import { useHistoryStore } from '../../../lib/history';
 import { useAuth, updateUserConversations } from '../../../lib/auth';
@@ -24,24 +21,10 @@ export default function StreamingConsole() {
   const { user } = useAuth();
 
   const turns = useLogStore(state => state.turns);
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   // Set the configuration for the Live API
   useEffect(() => {
-    // Using `any` for config to accommodate `speechConfig`, which is not in the
-    // current TS definitions but is used in the working reference example.
-    const config: any = {
-      responseModalities: [Modality.AUDIO],
-      speechConfig: {
-        voiceConfig: {
-          prebuiltVoiceConfig: {
-            // Defaulting use of Staff voice for the session for now
-            voiceName: voiceStaff,
-          },
-        },
-      },
-      inputAudioTranscription: {},
-      outputAudioTranscription: {},
+    const config: LiveConnectConfig = {
       systemInstruction: {
         parts: [
           {
@@ -49,36 +32,17 @@ export default function StreamingConsole() {
           },
         ],
       },
+      generationConfig: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: {
+              voiceName: voiceStaff,
+            },
+          },
+        },
+      },
     };
-
-    // Add to log store
-    const { addTurn } = useLogStore.getState();
-    const { stringResponse } = config; // Assuming stringResponse is part of config or derived from it
-
-    if (stringResponse) {
-      addTurn({
-        role: 'agent',
-        text: stringResponse,
-        isFinal: true,
-      });
-
-      // Save to Supabase if session exists
-      const { sessionId, user, language1 } = useSettings.getState();
-      if (sessionId && user) {
-        // Parse language tag to determine language
-        const match = stringResponse.match(/^\[LANG:(.+?)\]/);
-        let msgLang = language1; // default
-        if (match) {
-          msgLang = match[1];
-        }
-
-        // We save the *translated* text
-        // Role is 'agent' (the translator)
-        import('../../../lib/supabase').then(({ saveMessage }) => {
-          saveMessage(sessionId, 'agent', stringResponse, msgLang);
-        });
-      }
-    }
 
     setConfig(config);
   }, [setConfig, systemPrompt, voiceStaff]);
@@ -112,21 +76,17 @@ export default function StreamingConsole() {
       }
     };
 
-    // FIX: The 'content' event provides a single LiveServerContent object.
-    // The function signature is updated to accept one argument, and groundingMetadata is extracted from it.
     const handleContent = (serverContent: LiveServerContent) => {
       const text =
         serverContent.modelTurn?.parts
           ?.map((p: any) => p.text)
           .filter(Boolean)
           .join(' ') ?? '';
-      const rawChunks = serverContent.groundingMetadata?.groundingChunks;
 
-      // Map raw chunks to our state's GroundingChunk type
-      const groundingChunks = rawChunks?.map((chunk: any) => ({
+      const groundingChunks = serverContent.groundingMetadata?.groundingChunks?.map(chunk => ({
         web: chunk.web ? {
-          uri: chunk.web.uri,
-          title: chunk.web.title
+          uri: chunk.web.uri || '',
+          title: chunk.web.title || ''
         } : undefined
       }));
 

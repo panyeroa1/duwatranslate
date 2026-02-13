@@ -12,8 +12,8 @@ import { useHistoryStore } from '../lib/history';
 export default function Sidebar() {
   const { isSidebarOpen, toggleSidebar } = useUI();
   const {
-    systemPrompt, voice, language1, language2, topic,
-    setSystemPrompt, setVoice, setLanguage1, setLanguage2, setTopic
+    systemPrompt, voiceStaff, voiceGuest, language1, language2, topic,
+    setSystemPrompt, setVoiceStaff, setVoiceGuest, setLanguage1, setLanguage2, setTopic
   } = useSettings();
   const { connected } = useLiveAPIContext();
   const { isSuperAdmin } = useAuth();
@@ -46,8 +46,18 @@ export default function Sidebar() {
               </label>
             )}
             <label>
-              Voice
-              <select value={voice} onChange={e => setVoice(e.target.value)}>
+              Staff Voice (Orus)
+              <select value={voiceStaff} onChange={e => setVoiceStaff(e.target.value)}>
+                {AVAILABLE_VOICES.map(v => (
+                  <option key={v.value} value={v.value}>
+                    {v.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Guest Voice (Charon)
+              <select value={voiceGuest} onChange={e => setVoiceGuest(e.target.value)}>
                 {AVAILABLE_VOICES.map(v => (
                   <option key={v.value} value={v.value}>
                     {v.name}

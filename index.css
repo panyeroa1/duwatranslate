@@ -594,6 +594,60 @@ header .export-button {
   }
 }
 
+.auth-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px 8px 4px 12px;
+  border-radius: 100px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sign-out-btn {
+  background: none;
+  border: none;
+  color: var(--gray-500);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.sign-out-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--accent-red);
+}
+
+.sign-out-btn .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.app-title {
+  display: flex;
+  flex-direction: column;
+  margin-right: 24px;
+}
+
+.app-title .brand {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.app-title .subtitle {
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: -2px;
+}
+
 .action-button {
   display: flex;
   align-items: center;
@@ -624,10 +678,17 @@ header .export-button {
   background: none;
   border: 1px solid var(--gray-600);
   color: var(--text);
-  padding: 4px 12px;
-  border-radius: 16px;
+  padding: 6px 16px;
+  border-radius: 100px;
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.login-trigger-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--text);
 }
 
 /* Fix user-select vendor prefixes */

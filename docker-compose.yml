@@ -1,6 +1,22 @@
 version: '3.8'
 services:
-  app:
+  # Eburon Realtime Backend Proxy
+  eburon-realtime:
+    build: ./backend
+    container_name: eburon-realtime
+    ports:
+      - "8000:8000"
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+    restart: always
+
+  # Translator Frontend
+  frontend:
     build: .
+    container_name: eburon-frontend
     ports:
       - "3000:3000"
+    depends_on:
+      - eburon-realtime
+    restart: always
+

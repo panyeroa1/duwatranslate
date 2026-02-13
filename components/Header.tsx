@@ -17,6 +17,10 @@ export default function Header() {
     <>
       <header>
         <div className="header-left">
+          <div className="app-title">
+            <span className="brand">Eburon AI</span>
+            <span className="subtitle">Realtime Translator</span>
+          </div>
           <div className="language-controls">
             <div className="language-group">
               <span className="label">Staff:</span>
@@ -43,7 +47,17 @@ export default function Header() {
         </div>
         <div className="header-right">
           {user ? (
-            <span className="user-email">{user.id}</span>
+            <div className="auth-user">
+              <span className="user-email" title={user.id}>{user.id.split('@')[0]}</span>
+              <button
+                className="sign-out-btn"
+                onClick={() => {
+                  import('../lib/auth').then(({ signOut }) => signOut());
+                }}
+              >
+                <span className="material-symbols-outlined">logout</span>
+              </button>
+            </div>
           ) : (
             <button
               className="login-trigger-btn"

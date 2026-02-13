@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 import {
-  GoogleGenAI,
-  LiveCallbacks,
   LiveClientToolResponse,
   LiveConnectConfig,
   LiveServerContent,
@@ -12,32 +10,16 @@ import {
   LiveServerToolCall,
   LiveServerToolCallCancellation,
   Part,
-  Session,
-} from '@google/genai';
+  StreamingLog
+} from './types';
 import EventEmitter from 'eventemitter3';
 import { DEFAULT_LIVE_API_MODEL } from './constants';
 import { difference } from 'lodash';
 import { base64ToArrayBuffer } from './utils';
 
 /**
- * Represents a single log entry in the system.
- * Used for tracking and displaying system events, messages, and errors.
- */
-export interface StreamingLog {
-  // Optional count for repeated log entries
-  count?: number;
-  // Optional additional data associated with the log
-  data?: unknown;
-  // Timestamp of when the log was created
-  date: Date;
-  // The log message content
-  message: string | object;
-  // The type/category of the log entry
-  type: string;
-}
-
-/**
  * Event types that can be emitted by the MultimodalLiveClient.
+
  * Each event corresponds to a specific message from GenAI or client state change.
  */
 export interface LiveClientEventTypes {
@@ -80,8 +62,7 @@ export class GenAILiveClient {
 
   public readonly model: string = DEFAULT_LIVE_API_MODEL;
 
-  protected readonly client: GoogleGenAI;
-  protected session?: Session;
+  protected websocket?: WebSocket;
 
   private _status: 'connected' | 'disconnected' | 'connecting' = 'disconnected';
   public get status() {
@@ -90,15 +71,11 @@ export class GenAILiveClient {
 
   /**
    * Creates a new GenAILiveClient instance.
-   * @param apiKey - API key for authentication with Google GenAI
+   * @param apiKey - (Unused) API key is handled by the backend
    * @param model - Optional model name to override the default model
    */
   constructor(apiKey: string, model?: string) {
     if (model) this.model = model;
-
-    this.client = new GoogleGenAI({
-      apiKey: apiKey,
-    });
   }
 
   public async connect(config: LiveConnectConfig): Promise<boolean> {
@@ -107,98 +84,137 @@ export class GenAILiveClient {
     }
 
     this._status = 'connecting';
-    const callbacks: LiveCallbacks = {
-      onopen: this.onOpen.bind(this),
-      onmessage: this.onMessage.bind(this),
-      onerror: this.onError.bind(this),
-      onclose: this.onClose.bind(this),
-    };
+    const wsUrl = `ws://localhost:8000/ws`;
 
-    try {
-      this.session = await this.client.live.connect({
-        model: this.model,
-        config: {
-          ...config,
-        },
-        callbacks,
-      });
-    } catch (e: any) {
-      console.error('Error connecting to GenAI Live:', e);
-      this._status = 'disconnected';
-      this.session = undefined;
-      const errorEvent = new ErrorEvent('error', {
-        error: e,
-        message: e?.message || 'Failed to connect.',
-      });
-      this.onError(errorEvent);
-      return false;
+    return new Promise((resolve, reject) => {
+      try {
+        this.websocket = new WebSocket(wsUrl);
+        this.websocket.binaryType = 'arraybuffer';
+
+        this.websocket.onopen = () => {
+          this._status = 'connected';
+          // Send initial config
+          this.websocket?.send(JSON.stringify({
+            model: this.model,
+            config: config
+          }));
+          this.onOpen();
+          resolve(true);
+        };
+
+        this.websocket.onmessage = (event) => {
+          if (event.data instanceof ArrayBuffer) {
+            // Audio data
+            this.emitter.emit('audio', event.data);
+          } else {
+            // JSON messages
+            const message = JSON.parse(event.data);
+            this.handleBackendMessage(message);
+          }
+        };
+
+        this.websocket.onerror = (e) => {
+          this._status = 'disconnected';
+          this.onError(new ErrorEvent('WebSocket error'));
+          reject(e);
+        };
+
+        this.websocket.onclose = (e) => {
+          this._status = 'disconnected';
+          this.onClose(e);
+        };
+
+      } catch (e: any) {
+        this._status = 'disconnected';
+        this.onError(new ErrorEvent('Connection failed', { error: e }));
+        reject(e);
+      }
+    });
+  }
+
+  private handleBackendMessage(message: any) {
+    // Backend sends the model_dump of LiveServerMessage
+    if (message.setup_complete || message.setupComplete) {
+      this.emitter.emit('setupcomplete');
+      return;
     }
 
-    this._status = 'connected';
-    return true;
+    if (message.server_content || message.serverContent) {
+      const serverContent = message.server_content || message.serverContent;
+
+      if (serverContent.interrupted) {
+        this.emitter.emit('interrupted');
+        return;
+      }
+
+      if (serverContent.input_transcription || serverContent.inputTranscription) {
+        const trans = serverContent.input_transcription || serverContent.inputTranscription;
+        this.emitter.emit('inputTranscription', trans.text, trans.is_final || trans.isFinal || false);
+      }
+
+      if (serverContent.output_transcription || serverContent.outputTranscription) {
+        const trans = serverContent.output_transcription || serverContent.outputTranscription;
+        this.emitter.emit('outputTranscription', trans.text, trans.is_final || trans.isFinal || false);
+      }
+
+      if (serverContent.model_turn || serverContent.modelTurn) {
+        const turn = serverContent.model_turn || serverContent.modelTurn;
+        if (turn.parts) {
+          // We filter out audio parts as they are sent as binary chunks in this implementation
+          const textParts = turn.parts.filter((p: any) => !p.inline_data && !p.inlineData);
+          if (textParts.length > 0) {
+            this.emitter.emit('content', { modelTurn: { parts: textParts } });
+          }
+        }
+      }
+
+      if (serverContent.turn_complete || serverContent.turnComplete) {
+        this.emitter.emit('turncomplete');
+      }
+    }
   }
 
   public disconnect() {
-    this.session?.close();
-    this.session = undefined;
+    this.websocket?.close();
+    this.websocket = undefined;
     this._status = 'disconnected';
-
     this.log('client.close', `Disconnected`);
     return true;
   }
 
   public send(parts: Part | Part[], turnComplete: boolean = true) {
-    if (this._status !== 'connected' || !this.session) {
-      // FIX: Changed this.emit to this.emitter.emit to fix property does not exist error.
+    if (this._status !== 'connected' || !this.websocket) {
       this.emitter.emit('error', new ErrorEvent('Client is not connected'));
       return;
     }
-    this.session.sendClientContent({ turns: parts, turnComplete });
+    const message = {
+      client_content: { turns: Array.isArray(parts) ? parts : [parts], turnComplete }
+    };
+    this.websocket.send(JSON.stringify(message));
     this.log(`client.send`, parts);
   }
 
   public sendRealtimeInput(chunks: Array<{ mimeType: string; data: string }>) {
-    if (this._status !== 'connected' || !this.session) {
-      // FIX: Changed this.emit to this.emitter.emit to fix property does not exist error.
-      this.emitter.emit('error', new ErrorEvent('Client is not connected'));
+    if (this._status !== 'connected' || !this.websocket) {
       return;
     }
     chunks.forEach(chunk => {
-      this.session!.sendRealtimeInput({ media: chunk });
+      if (chunk.mimeType.includes('audio')) {
+        // Send as binary for performance
+        const buffer = base64ToArrayBuffer(chunk.data);
+        this.websocket?.send(buffer);
+      } else {
+        // Other types (if any) as JSON
+        this.websocket?.send(JSON.stringify({ realtime_input: { media: chunk } }));
+      }
     });
-
-    let hasAudio = false;
-    let hasVideo = false;
-    for (let i = 0; i < chunks.length; i++) {
-      const ch = chunks[i];
-      if (ch.mimeType.includes('audio')) hasAudio = true;
-      if (ch.mimeType.includes('image')) hasVideo = true;
-      if (hasAudio && hasVideo) break;
-    }
-
-    let message = 'unknown';
-    if (hasAudio && hasVideo) message = 'audio + video';
-    else if (hasAudio) message = 'audio';
-    else if (hasVideo) message = 'video';
-    this.log(`client.realtimeInput`, message);
   }
 
   public sendToolResponse(toolResponse: LiveClientToolResponse) {
-    if (this._status !== 'connected' || !this.session) {
-      // FIX: Changed this.emit to this.emitter.emit to fix property does not exist error.
-      this.emitter.emit('error', new ErrorEvent('Client is not connected'));
+    if (this._status !== 'connected' || !this.websocket) {
       return;
     }
-    if (
-      toolResponse.functionResponses &&
-      toolResponse.functionResponses.length
-    ) {
-      this.session.sendToolResponse({
-        functionResponses: toolResponse.functionResponses!,
-      });
-    }
-
-    this.log(`client.toolResponse`, { toolResponse });
+    this.websocket.send(JSON.stringify({ tool_response: toolResponse }));
   }
 
   protected onMessage(message: LiveServerMessage) {

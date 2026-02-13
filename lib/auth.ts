@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 import { create } from 'zustand';
-import { ConversationTurn } from './state';
+import { ConversationTurn } from './types';
 
 // --- MOCKED AUTH STORE ---
 // This provides a default "logged-in" state without any actual authentication.
@@ -27,6 +27,9 @@ export const useAuth = create<AuthState>(() => ({
   // All auth actions are no-ops
   signOut: () => { /* No operation */ },
 }));
+
+export const signOut = () => useAuth.getState().signOut();
+
 
 // --- DATABASE HELPERS (NO-OP) ---
 // These functions are kept for API compatibility with components but do not perform any database actions.
