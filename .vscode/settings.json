@@ -1,5 +1,7 @@
 {
-    "python.defaultInterpreterPath": ".venv/bin/python",
+    "python.defaultInterpreterPath": "/Users/master/github-repo/translator/copy-translator/.venv/bin/python",
+    "python.venvPath": "/Users/master/github-repo/translator/copy-translator",
+    "python.analysis.venvPath": "/Users/master/github-repo/translator/copy-translator",
     "python.analysis.extraPaths": [
         "./backend"
     ]
