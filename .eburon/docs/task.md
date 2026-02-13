@@ -1,7 +1,7 @@
 # Task Checklist
 
-- [x] Commit project documentation to the repository
-  - [x] Create `.eburon/docs` directory
-  - [x] Copy artifacts (implementation plans and walkthroughs) to the directory
-  - [x] Stage and commit the documentation
-  - [x] Push to remote
+- [x] Correct language-role mapping discrepancy
+  - [x] Update `lib/state.ts` to map Staff to `language1` and Guest to `language2`
+  - [x] Rename "Language 1/2" labels in `Sidebar.tsx` to "Staff/Guest Language"
+- [x] Verify the mapping in the UI
+- [x] Commit the changes

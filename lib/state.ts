@@ -33,8 +33,8 @@ const generateSystemPrompt = (lang1: string, lang2: string, topic: string) => {
 - When reading out the translation (TTS), ensure it sounds natural, human-like, and captures the original speaker's rhythm.
 
 **VOICE PERSONA REFERENCE:**
-- Voice: **Orus** for Staff (${lang2}).
-- Voice: **Charon** for Guest (${lang1}).
+- Voice: **Orus** for Staff (${lang1}).
+- Voice: **Charon** for Guest (${lang2}).
 
 ${topicInstruction}
 `;
