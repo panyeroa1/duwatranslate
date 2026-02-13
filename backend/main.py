@@ -7,17 +7,33 @@ from typing import Dict, Any, Optional
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from pathlib import Path
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
-
-load_dotenv()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("eburon-realtime")
 
 app = FastAPI(title="Eburon Realtime Backend")
+
+# Try several possible locations for environment variables
+env_locations = [
+    Path(__file__).parent / ".env",          # backend/.env
+    Path(__file__).parent.parent / ".env",   # root/.env
+    Path(__file__).parent.parent / ".env.local" # root/.env.local
+]
+
+for loc in env_locations:
+    try:
+        if loc.exists():
+            load_dotenv(loc)
+    except Exception as e:
+        # Use basic logging if logger fails or is somehow not ready
+        print(f"Warning: Could not check environment file {loc}: {e}")
+
+load_dotenv() # Also load from CWD
 
 # Enable CORS for frontend connection
 app.add_middleware(
@@ -28,7 +44,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
 
 if not GOOGLE_API_KEY:
     logger.error("GOOGLE_API_KEY not found in environment variables")
